@@ -1,0 +1,15 @@
+[
+  {
+    "chapter": 1,
+    "section": "basic",
+    "question": "Prokaryotes are defined by the lack of which structures?",
+    "choices": {
+      "A": "Cell wall and ribosomes",
+      "B": "True nucleus and mitochondria",
+      "C": "Plasmids and cytoplasm",
+      "D": "RNA and DNA"
+    },
+    "answer": "B",
+    "explanation": "Prokaryotes lack membrane-bound organelles such as nucleus and mitochondria."
+  }
+]
