@@ -3,21 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <title>Quiz</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h2>Quiz</h2>
+<div class="container">
 
-<div id="question"></div>
-<div id="choices"></div>
+  <h1>Pathology Quiz</h1>
 
-<button onclick="checkAnswer()">정답 확인</button>
-<button onclick="nextQuestion()">다음</button>
+  <div id="start-screen">
+    <button onclick="startQuiz()">Start Quiz</button>
+  </div>
 
-<div id="result"></div>
-<div id="explanation"></div>
+  <div id="quiz-screen" style="display:none;">
+    <h2 id="question"></h2>
+    <div id="choices"></div>
+    <button onclick="nextQuestion()">Next</button>
+  </div>
+
+  <div id="result-screen" style="display:none;">
+    <h2 id="score"></h2>
+    <button onclick="restartQuiz()">Restart</button>
+  </div>
+
+</div>
 
 <script src="script.js"></script>
-
 </body>
 </html>
