@@ -3,45 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>임상병리 전공 퀴즈 & 오답노트</title>
+    <title>임상병리 전공 통합 학습 시스템</title>
     <style>
         :root { --primary: #2c3e50; --accent: #3498db; --test: #e74c3c; --wrong: #f39c12; --bg: #f5f6fa; }
         body { font-family: 'Malgun Gothic', sans-serif; background: var(--bg); margin: 0; padding-bottom: 50px; }
         header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.2rem; font-weight: bold; }
         .container { display: flex; flex-direction: column; align-items: center; padding: 20px; }
         .setup-box { background: white; width: 100%; max-width: 750px; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .chapter-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin: 15px 0; }
-        .chapter-item { background: #eee; padding: 10px; border-radius: 5px; cursor: pointer; text-align: center; font-size: 0.9rem; transition: 0.2s; }
-        .chapter-item.selected { background: var(--accent); color: white; }
+        .tab-menu { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #ddd; width: 100%; }
+        .tab { padding: 10px 20px; cursor: pointer; background: #eee; border-radius: 8px 8px 0 0; font-weight: bold; }
+        .tab.active { background: var(--accent); color: white; }
+        .chapter-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 15px 0; }
+        .chapter-item { background: #f0f0f0; padding: 10px; border-radius: 5px; cursor: pointer; text-align: center; font-size: 0.9rem; transition: 0.2s; border: 1px solid #ddd; }
+        .chapter-item.selected { background: var(--accent); color: white; border-color: var(--accent); }
         .btn-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; }
         .quiz-card { background: white; width: 100%; max-width: 750px; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: none; }
         .q-text { font-size: 1.1rem; font-weight: bold; line-height: 1.6; margin-bottom: 20px; color: #333; white-space: pre-wrap; }
         .opt-btn { width: 100%; text-align: left; padding: 16px; margin-bottom: 12px; border: 2px solid #eee; border-radius: 10px; background: white; cursor: pointer; transition: 0.2s; font-size: 0.95rem; }
-        .opt-btn:hover { border-color: #3498db; }
-        .opt-btn.correct { background: #2ecc71 !important; color: white; border-color: #27ae60; }
-        .opt-btn.wrong { background: #e74c3c !important; color: white; border-color: #c0392b; }
+        .opt-btn:hover { border-color: var(--accent); }
+        .opt-btn.correct { background: #2ecc71 !important; color: white; }
+        .opt-btn.wrong { background: #e74c3c !important; color: white; }
         #next-btn { display: none; width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
         .main-btn { padding: 15px; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; }
-        .mode-all { background: var(--accent); }
-        .mode-test { background: var(--test); }
-        .mode-wrong { background: var(--wrong); }
     </style>
 </head>
 <body>
 
-<header>🔬 전공 마스터: 학습 & 오답 노트</header>
+<header>🔬 전공 통합 마스터: 미생물 & 화학</header>
 
 <div class="container">
     <div class="setup-box">
-        <h3 style="margin-top:0;">1. 챕터를 선택하세요</h3>
+        <div class="tab-menu" id="subject-tabs">
+            <div class="tab active" onclick="switchSubject('micro')">임상미생물학</div>
+            <div class="tab" onclick="switchSubject('chem')">임상화학</div>
+        </div>
+        
+        <h3 id="subject-title" style="margin-top:0;">임상미생물학 챕터 선택</h3>
         <div class="chapter-list" id="chapter-list"></div>
         
         <div class="btn-group">
-            <button class="main-btn mode-all" onclick="generateExam('all')">전체 학습</button>
-            <button class="main-btn mode-test" onclick="generateExam('ratio')">모의고사(18+6)</button>
-            <button class="main-btn mode-wrong" onclick="generateExam('wrong')">오답 노트 풀기</button>
+            <button class="main-btn" style="background:var(--accent)" onclick="generateExam('all')">전체 학습</button>
+            <button class="main-btn" style="background:var(--test)" onclick="generateExam('ratio')">모의고사(18+6)</button>
+            <button class="main-btn" style="background:var(--wrong)" onclick="generateExam('wrong')">오답 노트</button>
         </div>
-        <p id="wrong-count" style="text-align:center; font-size:0.85rem; margin-top:10px; color:#e67e22; font-weight:bold;"></p>
+        <p id="info-text" style="text-align:center; font-size:0.85rem; margin-top:15px; color:#666;"></p>
     </div>
 
     <div class="quiz-card" id="quiz-card">
@@ -53,34 +58,63 @@
 </div>
 
 <script>
-    const allQuizzes = {
-        "Chapter 5": {
-            basic: [ /* 여기에 Basic 60문제 */ ],
-            scenario: [ /* 여기에 Scenario 25문제 */ ]
+    // 과목별 통합 데이터 저장소
+    const allData = {
+        micro: {
+            name: "임상미생물학",
+            chapters: {
+                "Chapter 5": {
+                    basic: [ /* 미생물 Ch5 Basic 60개 */ ],
+                    scenario: [ /* 미생물 Ch5 Scenario 25개 */ ]
+                }
+            }
+        },
+        chem: {
+            name: "임상화학",
+            chapters: {
+                "Review Set 1": {
+                    basic: [ /* 임상화학 워드 문제들 나중에 여기에 추가 */ ],
+                    scenario: [] 
+                }
+            }
         }
-        // 다른 챕터 추가...
     };
 
-    let wrongAnswers = JSON.parse(localStorage.getItem('wrongAnswers')) || [];
+    let currentSubject = 'micro';
+    let wrongAnswers = JSON.parse(localStorage.getItem('wrongAnswers_v2')) || {};
     const selectedChapters = new Set();
-    const chapterListEl = document.getElementById('chapter-list');
 
-    function updateWrongCount() {
-        document.getElementById('wrong-count').innerText = `현재 저장된 오답: ${wrongAnswers.length}개`;
+    function switchSubject(sub) {
+        currentSubject = sub;
+        selectedChapters.clear();
+        document.querySelectorAll('.tab').forEach((t, i) => {
+            t.classList.toggle('active', (sub === 'micro' ? i === 0 : i === 1));
+        });
+        document.getElementById('subject-title').innerText = `${allData[sub].name} 챕터 선택`;
+        renderChapters();
+        updateInfo();
     }
-    updateWrongCount();
 
-    Object.keys(allQuizzes).forEach(ch => {
-        const div = document.createElement('div');
-        div.className = 'chapter-item';
-        div.innerText = ch;
-        div.onclick = () => {
-            div.classList.toggle('selected');
-            if(selectedChapters.has(ch)) selectedChapters.delete(ch);
-            else selectedChapters.add(ch);
-        };
-        chapterListEl.appendChild(div);
-    });
+    function renderChapters() {
+        const list = document.getElementById('chapter-list');
+        list.innerHTML = '';
+        Object.keys(allData[currentSubject].chapters).forEach(ch => {
+            const div = document.createElement('div');
+            div.className = 'chapter-item';
+            div.innerText = ch;
+            div.onclick = () => {
+                div.classList.toggle('selected');
+                if(selectedChapters.has(ch)) selectedChapters.delete(ch);
+                else selectedChapters.add(ch);
+            };
+            list.appendChild(div);
+        });
+    }
+
+    function updateInfo() {
+        const count = (wrongAnswers[currentSubject] || []).length;
+        document.getElementById('info-text').innerText = `현재 [${allData[currentSubject].name}] 오답: ${count}개`;
+    }
 
     let examPaper = [];
     let idx = 0;
@@ -93,21 +127,21 @@
     function generateExam(mode) {
         examPaper = [];
         if (mode === 'wrong') {
-            if (wrongAnswers.length === 0) { alert("저장된 오답이 없습니다!"); return; }
-            examPaper = getRandom(wrongAnswers);
+            const subWrongs = wrongAnswers[currentSubject] || [];
+            if (subWrongs.length === 0) { alert("저장된 오답이 없습니다!"); return; }
+            examPaper = getRandom(subWrongs);
         } else {
             if (selectedChapters.size === 0) { alert("챕터를 선택해주세요."); return; }
-            selectedChapters.forEach(chName => {
-                const chData = allQuizzes[chName];
+            selectedChapters.forEach(ch => {
+                const data = allData[currentSubject].chapters[ch];
                 if (mode === 'ratio') {
-                    examPaper = examPaper.concat(getRandom(chData.basic, 18), getRandom(chData.scenario, 6));
+                    examPaper = examPaper.concat(getRandom(data.basic, 18), getRandom(data.scenario, 6));
                 } else {
-                    examPaper = examPaper.concat(chData.basic, chData.scenario);
+                    examPaper = examPaper.concat(data.basic, data.scenario);
                 }
             });
             examPaper.sort(() => 0.5 - Math.random());
         }
-
         idx = 0;
         document.getElementById('quiz-card').style.display = 'block';
         showNext();
@@ -115,9 +149,9 @@
 
     function showNext() {
         if (idx >= examPaper.length) {
-            alert("모든 문제를 풀었습니다!");
+            alert("완료되었습니다!");
             document.getElementById('quiz-card').style.display = 'none';
-            updateWrongCount();
+            updateInfo();
             return;
         }
         const item = examPaper[idx];
@@ -134,19 +168,16 @@
             btn.onclick = () => {
                 const all = document.querySelectorAll('.opt-btn');
                 all.forEach(b => b.disabled = true);
-                
                 if (opt.startsWith(item.a)) {
                     btn.classList.add('correct');
-                    // 오답노트 모드에서 맞히면 목록에서 제거 (선택사항)
-                    // wrongAnswers = wrongAnswers.filter(w => w.q !== item.q);
                 } else {
                     btn.classList.add('wrong');
                     all.forEach(b => { if(b.innerText.startsWith(item.a)) b.classList.add('correct'); });
                     
-                    // 오답 저장 (중복 방지)
-                    if (!wrongAnswers.find(w => w.q === item.q)) {
-                        wrongAnswers.push(item);
-                        localStorage.setItem('wrongAnswers', JSON.stringify(wrongAnswers));
+                    if (!wrongAnswers[currentSubject]) wrongAnswers[currentSubject] = [];
+                    if (!wrongAnswers[currentSubject].find(w => w.q === item.q)) {
+                        wrongAnswers[currentSubject].push(item);
+                        localStorage.setItem('wrongAnswers_v2', JSON.stringify(wrongAnswers));
                     }
                 }
                 document.getElementById('next-btn').style.display = 'block';
@@ -155,6 +186,8 @@
             box.appendChild(btn);
         });
     }
+
+    switchSubject('micro');
 </script>
 </body>
 </html>
