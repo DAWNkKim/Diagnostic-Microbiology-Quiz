@@ -1,0 +1,39 @@
+{
+  "name": "임상화학",
+  "chapters": {
+    "Review Set 1": {
+      "basic": [
+        { "q": "When collecting blood specimens, blood culture tubes must be drawn last to prevent contamination by additives from other tubes. (O/X)", "options": ["O", "X"], "a": "X" },
+        { "q": "To inhibit glycolysis and ensure accurate blood glucose measurement, a tube containing sodium citrate must be used. (O/X)", "options": ["O", "X"], "a": "X" },
+        { "q": "The specific type and chemical properties of an amino acid constituting a protein are determined by the differences in the R group attached to the central carbon. (O/X)", "options": ["O", "X"], "a": "O" },
+        { "q": "AST and ALT commonly require pyridoxal 5-phosphate as a coenzyme when catalyzing transamination reactions. (O/X)", "options": ["O", "X"], "a": "O" },
+        { "q": "The pH of an aqueous solution is mathematically defined by the equation pH = -log[H+]. (O/X)", "options": ["O", "X"], "a": "O" },
+        { "q": "In a limit of linearity curve, the dynamic range strictly includes the linear range and refers to the entire response interval measurable by the instrument. (O/X)", "options": ["O", "X"], "a": "O" }
+      ],
+      "scenario": [
+        {
+          "q": "Which enzyme functions optimally at a low pH and is found in high concentrations in the prostate gland, making it historically significant as a biomarker for prostate cancer prior to the widespread use of PSA?",
+          "options": [
+            "① Acid phosphatase",
+            "② Alkaline phosphatase",
+            "③ 5'-Nucleotidase",
+            "④ Gamma-glutamyl transferase",
+            "⑤ Cholinesterase"
+          ],
+          "a": "①"
+        },
+        {
+          "q": "Which condition is most associated with increased LD3?",
+          "options": [
+            "① Hemolytic anemia",
+            "② CHF (Congestive heart failure)",
+            "③ lung disease",
+            "④ Liver disease",
+            "⑤ Myocardial infarction"
+          ],
+          "a": "③"
+        }
+      ]
+    }
+  }
+}
