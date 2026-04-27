@@ -1,66 +1,186 @@
-let currentData = null; // 현재 선택된 과목의 데이터
-let currentSubjectKey = 'micro'; // 현재 과목 키 (파일명과 일치해야 함)
-let wrongAnswers = JSON.parse(localStorage.getItem('wrongAnswers_v4')) || {};
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>임상병리 전공 통합 학습 시스템</title>
+    <style>
+        :root { --primary: #2c3e50; --accent: #3498db; --test: #e74c3c; --wrong: #f39c12; --bg: #f5f6fa; }
+        body { font-family: 'Malgun Gothic', sans-serif; background: var(--bg); margin: 0; padding-bottom: 50px; }
+        header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.2rem; font-weight: bold; }
+        .container { display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .setup-box { background: white; width: 100%; max-width: 750px; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .tab-menu { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #ddd; width: 100%; }
+        .tab { padding: 10px 20px; cursor: pointer; background: #eee; border-radius: 8px 8px 0 0; font-weight: bold; transition: 0.2s; }
+        .tab.active { background: var(--accent); color: white; }
+        .chapter-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 15px 0; }
+        .chapter-item { background: #f0f0f0; padding: 10px; border-radius: 5px; cursor: pointer; text-align: center; font-size: 0.9rem; border: 1px solid #ddd; }
+        .chapter-item.selected { background: var(--accent); color: white; border-color: var(--accent); }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .quiz-card { background: white; width: 100%; max-width: 750px; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: none; }
+        .q-text { font-size: 1.1rem; font-weight: bold; line-height: 1.6; margin-bottom: 20px; color: #333; white-space: pre-wrap; }
+        .opt-btn { width: 100%; text-align: left; padding: 16px; margin-bottom: 12px; border: 2px solid #eee; border-radius: 10px; background: white; cursor: pointer; font-size: 0.95rem; }
+        .opt-btn.correct { background: #2ecc71 !important; color: white; }
+        .opt-btn.wrong { background: #e74c3c !important; color: white; }
+        #next-btn { display: none; width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .main-btn { padding: 15px; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
 
-// 1. 탭을 누르면 해당 JSON 파일을 서버(깃허브)에서 가져옵니다.
-async function loadSubject(subjectKey) {
-    currentSubjectKey = subjectKey;
-    try {
-        // 파일명: micro.json 또는 chem.json 등을 호출
-        const response = await fetch(`${subjectKey}.json`);
-        currentData = await response.json();
+<header>🔬 임상병리 통합 학습 시스템</header>
+
+<div class="container">
+    <div class="setup-box">
+        <div class="tab-menu" id="subject-tabs">
+            <div class="tab active" id="tab-micro" onclick="loadSubject('micro')">임상미생물학</div>
+            <div class="tab" id="tab-chem" onclick="loadSubject('chem')">임상화학</div>
+        </div>
         
-        // 화면 업데이트
-        updateTabUI(subjectKey);
-        renderChapters();
-        updateInfo();
-    } catch (error) {
-        alert(`${subjectKey}.json 파일을 찾을 수 없습니다.`);
+        <h3 id="subject-title" style="margin-top:0;">과목 로딩 중...</h3>
+        <div class="chapter-list" id="chapter-list"></div>
+        
+        <div class="btn-group">
+            <button class="main-btn" style="background:var(--accent)" onclick="generateExam('all')">전체 학습</button>
+            <button class="main-btn" style="background:var(--test)" onclick="generateExam('ratio')">모의고사(18+6)</button>
+            <button class="main-btn" style="background:var(--wrong)" onclick="generateExam('wrong')">오답 노트</button>
+        </div>
+        <p id="info-text" style="text-align:center; font-size:0.85rem; margin-top:15px; color:#666;"></p>
+    </div>
+
+    <div class="quiz-card" id="quiz-card">
+        <div id="progress" style="margin-bottom:10px; color:#888; font-weight:bold;"></div>
+        <div class="q-text" id="q-display"></div>
+        <div id="options-box"></div>
+        <button id="next-btn" onclick="showNext()">다음 문제 ➔</button>
+    </div>
+</div>
+
+<script>
+    let currentData = null;
+    let currentSubjectKey = '';
+    const selectedChapters = new Set();
+    let wrongAnswers = JSON.parse(localStorage.getItem('wrongAnswers_final')) || {};
+
+    // 1. JSON 데이터 불러오기
+    async function loadSubject(subjectKey) {
+        currentSubjectKey = subjectKey;
+        selectedChapters.clear();
+        
+        try {
+            const response = await fetch(`${subjectKey}.json`);
+            currentData = await response.json();
+            
+            // UI 업데이트
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${subjectKey}`).classList.add('active');
+            document.getElementById('subject-title').innerText = `${currentData.name} 챕터 선택`;
+            
+            renderChapters();
+            updateInfo();
+        } catch (e) {
+            console.error(e);
+            alert(`${subjectKey}.json 파일을 찾을 수 없습니다.`);
+        }
     }
-}
 
-function updateTabUI(key) {
-    document.querySelectorAll('.tab').forEach(t => {
-        // 탭의 onclick 속성에 적힌 키값과 비교
-        t.classList.toggle('active', t.getAttribute('onclick').includes(key));
-    });
-    document.getElementById('subject-title').innerText = `${currentData.name} 챕터 선택`;
-}
-
-function renderChapters() {
-    const list = document.getElementById('chapter-list');
-    list.innerHTML = '';
-    Object.keys(currentData.chapters).forEach(ch => {
-        const div = document.createElement('div');
-        div.className = 'chapter-item';
-        div.innerText = ch;
-        div.onclick = () => {
-            div.classList.toggle('selected');
-            if(selectedChapters.has(ch)) selectedChapters.delete(ch);
-            else selectedChapters.add(ch);
-        };
-        list.appendChild(div);
-    });
-}
-
-// 시험 생성 시 현재 불러온 currentData를 사용
-function generateExam(mode) {
-    examPaper = [];
-    if (mode === 'wrong') {
-        const subWrongs = wrongAnswers[currentSubjectKey] || [];
-        if (subWrongs.length === 0) { alert("저장된 오답이 없습니다!"); return; }
-        examPaper = [...subWrongs].sort(() => 0.5 - Math.random());
-    } else {
-        if (selectedChapters.size === 0) { alert("챕터를 선택해주세요."); return; }
-        selectedChapters.forEach(ch => {
-            const data = currentData.chapters[ch];
-            if (mode === 'ratio') {
-                examPaper = examPaper.concat(getRandom(data.basic, 18), getRandom(data.scenario, 6));
-            } else {
-                examPaper = examPaper.concat(data.basic, data.scenario);
-            }
+    function renderChapters() {
+        const list = document.getElementById('chapter-list');
+        list.innerHTML = '';
+        Object.keys(currentData.chapters).forEach(ch => {
+            const div = document.createElement('div');
+            div.className = 'chapter-item';
+            div.innerText = ch;
+            div.onclick = () => {
+                div.classList.toggle('selected');
+                if(selectedChapters.has(ch)) selectedChapters.delete(ch);
+                else selectedChapters.add(ch);
+            };
+            list.appendChild(div);
         });
-        examPaper.sort(() => 0.5 - Math.random());
     }
-    // ... 이하 출력 로직 동일
-}
+
+    function updateInfo() {
+        const count = (wrongAnswers[currentSubjectKey] || []).length;
+        document.getElementById('info-text').innerText = `현재 [${currentData.name}] 오답: ${count}개`;
+    }
+
+    let examPaper = [];
+    let idx = 0;
+
+    function getRandom(arr, n) {
+        if (!arr || arr.length === 0) return [];
+        const shuffled = [...arr].sort(() => 0.5 - Math.random());
+        return n ? shuffled.slice(0, n) : shuffled;
+    }
+
+    function generateExam(mode) {
+        examPaper = [];
+        if (mode === 'wrong') {
+            const subWrongs = wrongAnswers[currentSubjectKey] || [];
+            if (subWrongs.length === 0) { alert("저장된 오답이 없습니다!"); return; }
+            examPaper = getRandom(subWrongs);
+        } else {
+            if (selectedChapters.size === 0) { alert("챕터를 선택해주세요."); return; }
+            selectedChapters.forEach(ch => {
+                const data = currentData.chapters[ch];
+                if (mode === 'ratio') {
+                    examPaper = examPaper.concat(getRandom(data.basic, 18), getRandom(data.scenario, 6));
+                } else {
+                    examPaper = examPaper.concat(data.basic || [], data.scenario || []);
+                }
+            });
+            examPaper.sort(() => 0.5 - Math.random());
+        }
+        
+        if (examPaper.length === 0) { alert("선택한 항목에 문제가 없습니다."); return; }
+        idx = 0;
+        document.getElementById('quiz-card').style.display = 'block';
+        showNext();
+    }
+
+    function showNext() {
+        if (idx >= examPaper.length) {
+            alert("학습이 완료되었습니다!");
+            document.getElementById('quiz-card').style.display = 'none';
+            updateInfo();
+            return;
+        }
+        const item = examPaper[idx];
+        document.getElementById('progress').innerText = `${idx + 1} / ${examPaper.length}`;
+        document.getElementById('q-display').innerText = item.q;
+        const box = document.getElementById('options-box');
+        box.innerHTML = '';
+        document.getElementById('next-btn').style.display = 'none';
+
+        item.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'opt-btn';
+            btn.innerText = opt;
+            btn.onclick = () => {
+                const all = document.querySelectorAll('.opt-btn');
+                all.forEach(b => b.disabled = true);
+                if (opt.startsWith(item.a)) {
+                    btn.classList.add('correct');
+                } else {
+                    btn.classList.add('wrong');
+                    all.forEach(b => { if(b.innerText.startsWith(item.a)) b.classList.add('correct'); });
+                    
+                    if (!wrongAnswers[currentSubjectKey]) wrongAnswers[currentSubjectKey] = [];
+                    if (!wrongAnswers[currentSubjectKey].find(w => w.q === item.q)) {
+                        wrongAnswers[currentSubjectKey].push(item);
+                        localStorage.setItem('wrongAnswers_final', JSON.stringify(wrongAnswers));
+                    }
+                }
+                document.getElementById('next-btn').style.display = 'block';
+                idx++;
+            };
+            box.appendChild(btn);
+        });
+    }
+
+    // 초기 실행
+    loadSubject('micro');
+</script>
+</body>
+</html>
