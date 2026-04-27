@@ -3,46 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>임상병리 전공 통합 퀴즈</title>
+    <title>전공 필기 모의고사 시스템</title>
     <style>
-        :root { --primary: #2c3e50; --accent: #3498db; --bg: #f5f6fa; }
+        :root { --primary: #2c3e50; --accent: #e74c3c; --bg: #f5f6fa; }
         body { font-family: 'Malgun Gothic', sans-serif; background: var(--bg); margin: 0; padding-bottom: 50px; }
         header { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 1.2rem; font-weight: bold; }
         .container { display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .setup-box { background: white; width: 100%; max-width: 700px; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .quiz-card { background: white; width: 100%; max-width: 700px; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: none; }
+        .setup-box { background: white; width: 100%; max-width: 750px; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .chapter-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin: 15px 0; }
+        .chapter-item { background: #eee; padding: 10px; border-radius: 5px; cursor: pointer; text-align: center; font-size: 0.9rem; }
+        .chapter-item.selected { background: var(--accent); color: white; }
+        .quiz-card { background: white; width: 100%; max-width: 750px; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: none; }
         .q-text { font-size: 1.1rem; font-weight: bold; line-height: 1.6; margin-bottom: 20px; color: #333; white-space: pre-wrap; }
-        .opt-btn { width: 100%; text-align: left; padding: 15px; margin-bottom: 10px; border: 2px solid #eee; border-radius: 10px; background: white; cursor: pointer; transition: 0.2s; font-size: 0.95rem; }
-        .opt-btn:hover { border-color: var(--accent); background: #f1f9ff; }
+        .opt-btn { width: 100%; text-align: left; padding: 16px; margin-bottom: 12px; border: 2px solid #eee; border-radius: 10px; background: white; cursor: pointer; transition: 0.2s; font-size: 0.95rem; }
+        .opt-btn:hover { border-color: #3498db; }
         .opt-btn.correct { background: #2ecc71 !important; color: white; border-color: #27ae60; }
         .opt-btn.wrong { background: #e74c3c !important; color: white; border-color: #c0392b; }
-        #next-btn { display: none; width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .select-group { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-        select, button.main-btn { padding: 10px; border-radius: 6px; border: 1px solid #ddd; font-size: 14px; }
-        button.main-btn { background: var(--accent); color: white; border: none; cursor: pointer; font-weight: bold; }
+        #next-btn { display: none; width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .main-btn { width: 100%; padding: 15px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; }
     </style>
 </head>
 <body>
 
-<header>🔬 Clinical Pathology Exam Master</header>
+<header>🎓 임상병리 전공 모의고사 (비율 고정 출제)</header>
 
 <div class="container">
     <div class="setup-box">
-        <div class="select-group">
-            <select id="chapter-select">
-                <option value="all">모든 챕터 통합</option>
-                <option value="ch5">Chapter 5. Microscopy</option>
-                <option value="ch6">Chapter 6. (준비중)</option>
-            </select>
-            <select id="type-select">
-                <option value="all">전체 난이도 섞기</option>
-                <option value="basic">Basic (60문항)</option>
-                <option value="clinical">Clinical (20문항)</option>
-                <option value="advanced">Advanced (5문항)</option>
-            </select>
-            <button class="main-btn" onclick="startQuiz()">시험 시작!</button>
-        </div>
-        <p style="margin:0; font-size: 0.8rem; color: #666;">* 선택한 옵션의 모든 문제가 랜덤하게 섞여서 나옵니다.</p>
+        <h3 style="margin-top:0;">1. 포함할 챕터를 선택하세요.</h3>
+        <div class="chapter-list" id="chapter-list">
+            </div>
+        <p style="font-size:0.85rem; color:#666;">* 각 챕터당 [Basic 18문항 + Scenario 6문항]이 랜덤하게 추출됩니다.</p>
+        <button class="main-btn" onclick="generateExam()">실제 시험처럼 문제 생성하기</button>
     </div>
 
     <div class="quiz-card" id="quiz-card">
@@ -54,58 +45,81 @@
 </div>
 
 <script>
+    // 챕터별 데이터 저장소 (여기에 드린 문제들을 다 채우시면 됩니다)
     const allQuizzes = {
-        ch5: {
-            basic: [ /* 여기에 아까 드린 1~60번 문제 데이터 입력 */ ],
-            clinical: [ /* 여기에 아까 드린 Clinical 20문제 데이터 입력 */ ],
-            advanced: [ /* 여기에 이번에 드린 Advanced 5문제 데이터 입력 */ ]
+        "Chapter 5": {
+            basic: [ /* 아까 드린 60문제 */ ],
+            scenario: [ /* 아까 드린 Clinical 20 + Advanced 5문제 */ ]
         },
-        ch6: {
-            basic: [], clinical: [], advanced: [] // 나중에 파일 올려주시면 제가 채워드립니다.
+        "Chapter 6": {
+            basic: [], scenario: [] // 새 파일 주시면 여기에 추가
+        },
+        "Chapter 7": {
+            basic: [], scenario: [] // 새 파일 주시면 여기에 추가
         }
     };
 
-    // 데이터가 너무 커서 아래에 별도로 합치는 로직을 넣었습니다. 
-    // 실제 파일 만드실 때 위 대괄호 안에 문제들을 복사해서 넣으시면 됩니다.
+    // 챕터 선택 상태 관리
+    const selectedChapters = new Set();
+    const chapterListEl = document.getElementById('chapter-list');
 
-    let currentQuestions = [];
+    Object.keys(allQuizzes).forEach(ch => {
+        const div = document.createElement('div');
+        div.className = 'chapter-item';
+        div.innerText = ch;
+        div.onclick = () => {
+            div.classList.toggle('selected');
+            if(selectedChapters.has(ch)) selectedChapters.delete(ch);
+            else selectedChapters.add(ch);
+        };
+        chapterListEl.appendChild(div);
+    });
+
+    let examPaper = [];
     let idx = 0;
 
-    function startQuiz() {
-        const ch = document.getElementById('chapter-select').value;
-        const type = document.getElementById('type-select').value;
-        
-        currentQuestions = [];
+    function getRandom(arr, n) {
+        const shuffled = [...arr].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, n);
+    }
 
-        // 문제 추출 로직
-        const chapters = ch === 'all' ? Object.keys(allQuizzes) : [ch];
-        chapters.forEach(c => {
-            const types = type === 'all' ? Object.keys(allQuizzes[c]) : [type];
-            types.forEach(t => {
-                currentQuestions = currentQuestions.concat(allQuizzes[c][t]);
-            });
-        });
-
-        if (currentQuestions.length === 0) {
-            alert("선택한 항목에 문제가 없습니다.");
+    function generateExam() {
+        if (selectedChapters.size === 0) {
+            alert("최소 하나 이상의 챕터를 선택해주세요.");
             return;
         }
 
-        // 전체 랜덤 섞기
-        currentQuestions.sort(() => Math.random() - 0.5);
-        
+        examPaper = [];
+        selectedChapters.forEach(chName => {
+            const chData = allQuizzes[chName];
+            // Basic 18문제 추출
+            const pickedBasic = getRandom(chData.basic, 18);
+            // Scenario 6문제 추출
+            const pickedScenario = getRandom(chData.scenario, 6);
+            
+            examPaper = examPaper.concat(pickedBasic, pickedScenario);
+        });
+
+        // 뽑힌 72문제를 전체적으로 다시 한번 섞음
+        examPaper.sort(() => 0.5 - Math.random());
+
+        if (examPaper.length === 0) {
+            alert("선택한 챕터에 문제가 없습니다.");
+            return;
+        }
+
         idx = 0;
         document.getElementById('quiz-card').style.display = 'block';
         showNext();
     }
 
     function showNext() {
-        if (idx >= currentQuestions.length) {
-            alert("시험 종료! 모든 문제를 풀었습니다.");
+        if (idx >= examPaper.length) {
+            alert("시험이 종료되었습니다!");
             return;
         }
-        const item = currentQuestions[idx];
-        document.getElementById('progress').innerText = `문제 ${idx + 1} / ${currentQuestions.length}`;
+        const item = examPaper[idx];
+        document.getElementById('progress').innerText = `전체 ${examPaper.length}문항 중 ${idx + 1}번 문제`;
         document.getElementById('q-display').innerText = item.q;
         const box = document.getElementById('options-box');
         box.innerHTML = '';
